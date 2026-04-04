@@ -10,11 +10,13 @@ import {
   TrendingUp,
   Activity,
   ShieldAlert,
+  Crosshair,
 } from 'lucide-react';
 
 const mobileNavItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/opportunities', icon: TrendingUp, label: 'Opportunities' },
+  { to: '/recommendations', icon: Crosshair, label: 'Recommendations' },
   { to: '/macro', icon: Activity, label: 'Macro Drivers' },
   { to: '/risks', icon: ShieldAlert, label: 'Risk Monitor' },
   { to: '/analysis', icon: BarChart3, label: 'Analysis' },

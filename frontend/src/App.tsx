@@ -5,6 +5,7 @@ import { Opportunities } from '@/pages/Opportunities';
 import { MacroDrivers } from '@/pages/MacroDrivers';
 import { RiskMonitor } from '@/pages/RiskMonitor';
 import { AnalysisDetail } from '@/pages/AnalysisDetail';
+import { Recommendations } from '@/pages/Recommendations';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/opportunities" element={<Opportunities />} />
+          <Route path="/recommendations" element={<Recommendations />} />
           <Route path="/macro" element={<MacroDrivers />} />
           <Route path="/risks" element={<RiskMonitor />} />
           <Route path="/analysis" element={<AnalysisDetail />} />
