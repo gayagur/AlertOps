@@ -1,10 +1,10 @@
 # Market Opportunity Intelligence
 
+**Live Demo:** [market-intel-mc8bqv3b9-gayagur333-5297s-projects.vercel.app](https://market-intel-mc8bqv3b9-gayagur333-5297s-projects.vercel.app/)
+
 A premium market analysis dashboard that ingests macro events, market signals, and sector-level trends, then explains where investment opportunities may exist and why.
 
 **This is NOT a trading bot or financial advice tool.** It provides structured market analysis, opportunity signals, risk context, and clear explanations.
-
-![Dashboard Screenshot](docs/screenshot.png)
 
 ## Architecture
 
