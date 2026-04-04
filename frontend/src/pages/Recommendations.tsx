@@ -26,7 +26,6 @@ export function Recommendations() {
 
   const topOpp = top_recommendations[0];
   const highestConf = [...top_recommendations].sort((a, b) => b.confidence - a.confidence)[0];
-  const lowestRiskIdx = top_recommendations.findIndex((r) => r.risks.length <= 1);
   const bestEtf = top_recommendations
     .flatMap((r) => r.recommended_instruments)
     .find((i) => i.type === 'ETF');
