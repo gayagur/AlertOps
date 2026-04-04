@@ -1,6 +1,6 @@
 # Market Opportunity Intelligence
 
-**Live Demo:** [market-intel-mc8bqv3b9-gayagur333-5297s-projects.vercel.app](https://market-intel-mc8bqv3b9-gayagur333-5297s-projects.vercel.app/)
+**Live Demo:** [market-intel-sooty.vercel.app](https://market-intel-sooty.vercel.app/)
 
 A premium market analysis dashboard that ingests macro events, market signals, and sector-level trends, then explains where investment opportunities may exist and why.
 
