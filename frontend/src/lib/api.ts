@@ -1,6 +1,10 @@
 import type { AnalysisResponse } from '@/types/analysis';
 
-const BASE_URL = '/api';
+// In dev, Vite proxy handles /api → localhost:8000
+// In production, set VITE_API_BASE_URL to your deployed backend
+const BASE_URL = import.meta.env.VITE_API_BASE_URL
+  ? `${import.meta.env.VITE_API_BASE_URL}/api`
+  : '/api';
 
 async function fetchJSON<T>(endpoint: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${endpoint}`);
