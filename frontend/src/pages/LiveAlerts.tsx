@@ -7,7 +7,7 @@ import { EventTypeBadge } from '@/components/common/EventTypeBadge';
 import { SourceBadge } from '@/components/common/SourceBadge';
 import { RegionSelector } from '@/components/common/RegionSelector';
 import { MetricCard } from '@/components/cards/MetricCard';
-import { formatTimestamp, cn } from '@/lib/utils';
+import { formatTimestamp, formatRelativeTime, cn } from '@/lib/utils';
 import { mockIncidents } from '@/lib/mock-conflict';
 import type { EventType } from '@/types/conflict';
 
@@ -31,45 +31,55 @@ const EVENT_FILTERS: { value: EventType | 'all'; label: string }[] = [
 const disclaimer =
   'This dashboard is intended for civilian informational use based on public official sources and historical data. It does not provide real-time tactical forecasting.';
 
-function timeAgo(ts: string): string {
-  const diff = Date.now() - new Date(ts).getTime();
-  const sec = Math.floor(diff / 1000);
-  if (sec < 60) return `${sec}s ago`;
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  return `${Math.floor(hr / 24)}d ago`;
-}
-
 function withinWindow(ts: string, window: TimeWindow): boolean {
   if (window === 'live') return true;
   const hours = window === '1h' ? 1 : window === '6h' ? 6 : 24;
   return Date.now() - new Date(ts).getTime() < hours * 3600_000;
 }
 
+// Sub-area mappings: selecting a region includes its known cities/sub-areas
+const REGION_ALIASES: Record<string, string[]> = {
+  'Gush Dan': ['Tel Aviv', 'Ramat Gan', 'Holon', 'Bat Yam', 'Rishon LeZion', 'Petah Tikva', 'Bnei Brak', 'Givatayim'],
+  'Sharon': ['Netanya', 'Herzliya', 'Kfar Saba', 'Ra\'anana', 'Hod HaSharon'],
+  'Haifa': ['Haifa', 'Krayot', 'Nesher', 'Tirat Carmel'],
+  'Jerusalem': ['Jerusalem', 'Beit Shemesh', 'Mevaseret Zion'],
+  'Northern Negev': ['Beer Sheva', 'Arad', 'Ofakim', 'Netivot'],
+  'Upper Galilee': ['Kiryat Shmona', 'Safed', 'Metula'],
+  'Shfela': ['Rehovot', 'Ramle', 'Lod', 'Gedera'],
+  'Coastal Plain': ['Ashdod', 'Ashkelon', 'Yavne'],
+  'Eilat': ['Eilat'],
+};
+
 export function LiveAlerts() {
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [eventFilter, setEventFilter] = useState<EventType | 'all'>('all');
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('24h');
+  const [displayLimit, setDisplayLimit] = useState(20);
 
   const { data, isFetching } = useLiveAlerts(100);
 
   // Always show content — mock data is the fallback, never show blank page
   const allIncidents: Array<Record<string, unknown>> = (data?.data ?? mockIncidents) as Array<Record<string, unknown>>;
 
-  // Filter by region
+  // Filter by region — includes sub-area/city aliases
   const regionFiltered = useMemo(() => {
     if (!selectedRegion) return allIncidents;
+    const sel = selectedRegion.toLowerCase();
+    const aliases = (REGION_ALIASES[selectedRegion] ?? []).map((a) => a.toLowerCase());
+
     return allIncidents.filter((inc) => {
-      const region = String(inc.region ?? '');
-      const areas = (inc.areas as string[]) ?? [];
-      const city = String(inc.city ?? '');
-      return (
-        region.toLowerCase().includes(selectedRegion.toLowerCase()) ||
-        city.toLowerCase().includes(selectedRegion.toLowerCase()) ||
-        areas.some((a) => a.toLowerCase().includes(selectedRegion.toLowerCase()))
-      );
+      const region = String(inc.region ?? '').toLowerCase();
+      const city = String(inc.city ?? '').toLowerCase();
+      const areas = ((inc.areas as string[]) ?? []).map((a) => a.toLowerCase());
+
+      // Match if region name matches
+      if (region.includes(sel) || sel.includes(region)) return true;
+      // Match if city is a known alias of the selected region
+      if (city && aliases.some((a) => city.includes(a) || a.includes(city))) return true;
+      // Match if any area string contains the region or its aliases
+      if (areas.some((a) => a.includes(sel) || aliases.some((al) => a.includes(al)))) return true;
+
+      return false;
     });
   }, [allIncidents, selectedRegion]);
 
@@ -193,7 +203,7 @@ export function LiveAlerts() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
           label="Last Alert"
-          value={latestAlertTs ? timeAgo(latestAlertTs) : '—'}
+          value={latestAlertTs ? formatRelativeTime(latestAlertTs) : '—'}
           icon={Clock}
           accent={isActive ? 'bearish' : 'default'}
           subtitle={regionLabel}
@@ -240,8 +250,13 @@ export function LiveAlerts() {
         </motion.div>
       ) : (
         <div className="space-y-2">
+          {/* Total count */}
+          <div className="flex items-center justify-between text-xs text-text-tertiary pb-1">
+            <span>Showing {Math.min(displayLimit, filtered.length)} of {filtered.length} events</span>
+            <span>Times shown in Israel local time</span>
+          </div>
           <AnimatePresence mode="popLayout">
-            {filtered.map((inc, idx) => {
+            {filtered.slice(0, displayLimit).map((inc, idx) => {
               const eventType = String(inc.eventType ?? inc.alert_type ?? 'alert');
               const ts = String(inc.timestamp ?? '');
 
@@ -292,7 +307,7 @@ export function LiveAlerts() {
 
                     <div className="shrink-0 text-right space-y-1">
                       <p className="text-xs font-medium text-text-primary">
-                        {ts ? timeAgo(ts) : '—'}
+                        {ts ? formatRelativeTime(ts) : '—'}
                       </p>
                       <p className="text-[10px] text-text-tertiary">
                         {formatTimestamp(ts)}
@@ -308,6 +323,16 @@ export function LiveAlerts() {
               );
             })}
           </AnimatePresence>
+
+          {/* Show more */}
+          {filtered.length > displayLimit && (
+            <button
+              onClick={() => setDisplayLimit((l) => l + 20)}
+              className="w-full rounded-xl border border-border bg-surface py-3 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-hover transition-all"
+            >
+              Show more ({filtered.length - displayLimit} remaining)
+            </button>
+          )}
         </div>
       )}
 
