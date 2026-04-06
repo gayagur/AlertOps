@@ -6,8 +6,10 @@ import {
 import { AlertTriangle, Target, MapPin, Clock, Bell, Calendar } from 'lucide-react';
 import { MetricCard } from '@/components/cards/MetricCard';
 import { SourceBadge } from '@/components/common/SourceBadge';
+import { FreshnessBar } from '@/components/common/FreshnessBar';
 import { EventTypeBadge } from '@/components/common/EventTypeBadge';
 import { formatTimestamp } from '@/lib/utils';
+import { useLiveAlerts, useOverview, useRegionStats, useTimeSeries } from '@/hooks/useLiveData';
 import {
   mockOverview, mockTimeSeries, mockRegionStats, mockIncidents,
   mockOfficialUpdates,
@@ -17,14 +19,32 @@ const disclaimer =
   'This dashboard is intended for civilian informational use based on public official sources and historical data. It does not provide real-time tactical forecasting.';
 
 export function ConflictOverview() {
-  const overview = mockOverview;
-  const recentIncidents = mockIncidents.slice(0, 5);
-  const latestUpdate = mockOfficialUpdates[0];
+  // Live data with mock fallbacks
+  const liveAlerts = useLiveAlerts(5);
+  const overviewQ = useOverview();
+  const regionsQ = useRegionStats();
+  const timeseriesQ = useTimeSeries();
 
-  const regionBarData = mockRegionStats.map((r) => ({
-    region: r.region,
-    alerts: r.alerts,
-  }));
+  // Resolve data: live envelope → mock fallback
+  const overview = overviewQ.data?.data
+    ? {
+        totalAlerts: (overviewQ.data.data as Record<string, number>).total_alerts ?? mockOverview.totalAlerts,
+        totalImpacts: mockOverview.totalImpacts,
+        mostAffectedRegion: (overviewQ.data.data as Record<string, string>).most_affected_region ?? mockOverview.mostAffectedRegion,
+        peakActivityHour: (overviewQ.data.data as Record<string, number>).peak_activity_hour ?? mockOverview.peakActivityHour,
+        last24hAlerts: (overviewQ.data.data as Record<string, number>).last_24h_alerts ?? mockOverview.last24hAlerts,
+        last7dAlerts: (overviewQ.data.data as Record<string, number>).last_7d_alerts ?? mockOverview.last7dAlerts,
+        sourceName: mockOverview.sourceName,
+        lastUpdated: overviewQ.data?.generated_at ?? mockOverview.lastUpdated,
+      }
+    : mockOverview;
+
+  const recentIncidents: Array<Record<string, unknown>> = (liveAlerts.data?.data ?? mockIncidents.slice(0, 5)) as Array<Record<string, unknown>>;
+  const regionBarData = regionsQ.data?.data
+    ? (regionsQ.data.data as Array<{ region: string; alerts: number }>).map((r) => ({ region: r.region, alerts: r.alerts }))
+    : mockRegionStats.map((r) => ({ region: r.region, alerts: r.alerts }));
+  const timeSeriesData = (timeseriesQ.data?.data as typeof mockTimeSeries) ?? mockTimeSeries;
+  const latestUpdate = mockOfficialUpdates[0];
 
   return (
     <div className="space-y-8">
@@ -41,11 +61,12 @@ export function ConflictOverview() {
           Aggregated civilian alert data from official public sources.
         </p>
         <div className="mt-3">
-          <SourceBadge
-            sourceName={overview.sourceName}
-            sourceType="official"
-            confidence="official"
-            timestamp={overview.lastUpdated}
+          <FreshnessBar
+            source={overview.sourceName}
+            lastUpdated={overviewQ.data?.source_last_updated ?? overview.lastUpdated}
+            tier={overviewQ.data?.freshness_tier}
+            stale={overviewQ.data?.stale}
+            isFetching={overviewQ.isFetching}
           />
         </div>
       </motion.div>
@@ -71,21 +92,29 @@ export function ConflictOverview() {
         >
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-sm font-semibold text-text-primary">Alerts Over Time</h2>
-            <SourceBadge sourceName="Home Front Command" confidence="official" compact />
           </div>
-          <p className="text-xs text-text-tertiary mb-4">Daily alert, impact, and interception counts</p>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={mockTimeSeries}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
-              <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} tickFormatter={(v: string) => v.slice(5)} />
-              <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
-              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 12, border: '1px solid var(--color-border)' }} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="alerts" stroke="var(--color-neutral-signal)" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="impacts" stroke="var(--color-bearish)" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="interceptions" stroke="var(--color-bullish)" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
+          <p className="text-xs text-text-tertiary mb-2">Daily alert, impact, and interception counts</p>
+          <FreshnessBar
+            source="Home Front Command"
+            lastUpdated={timeseriesQ.data?.source_last_updated}
+            tier="aggregated"
+            stale={timeseriesQ.data?.stale}
+            isFetching={timeseriesQ.isFetching}
+          />
+          <div className="mt-3">
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={timeSeriesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} tickFormatter={(v: string) => v.slice(5)} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 12, border: '1px solid var(--color-border)' }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line type="monotone" dataKey="alerts" stroke="var(--color-neutral-signal)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="impacts" stroke="var(--color-bearish)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="interceptions" stroke="var(--color-bullish)" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </motion.div>
 
         {/* Regional Distribution */}
@@ -97,18 +126,26 @@ export function ConflictOverview() {
         >
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-sm font-semibold text-text-primary">Regional Distribution</h2>
-            <SourceBadge sourceName="Home Front Command" confidence="official" compact />
           </div>
-          <p className="text-xs text-text-tertiary mb-4">Total alerts by region</p>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={regionBarData} layout="vertical" margin={{ left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
-              <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
-              <YAxis dataKey="region" type="category" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} width={100} />
-              <Tooltip contentStyle={{ fontSize: 12, borderRadius: 12, border: '1px solid var(--color-border)' }} />
-              <Bar dataKey="alerts" fill="var(--color-accent)" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <p className="text-xs text-text-tertiary mb-2">Total alerts by region</p>
+          <FreshnessBar
+            source="Home Front Command"
+            lastUpdated={regionsQ.data?.source_last_updated}
+            tier="near_realtime"
+            stale={regionsQ.data?.stale}
+            isFetching={regionsQ.isFetching}
+          />
+          <div className="mt-3">
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={regionBarData} layout="vertical" margin={{ left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-subtle)" />
+                <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--color-text-tertiary)' }} />
+                <YAxis dataKey="region" type="category" tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }} width={100} />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 12, border: '1px solid var(--color-border)' }} />
+                <Bar dataKey="alerts" fill="var(--color-accent)" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </motion.div>
       </div>
 
@@ -121,22 +158,29 @@ export function ConflictOverview() {
           transition={{ duration: 0.35, delay: 0.2 }}
           className="lg:col-span-2 rounded-2xl border border-border bg-surface p-6"
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-text-primary">Recent Incidents</h2>
-            <SourceBadge sourceName="Home Front Command" confidence="official" compact />
           </div>
-          <div className="space-y-3">
-            {recentIncidents.map((inc) => (
-              <div key={inc.id} className="flex items-start gap-3 p-3 rounded-xl border border-border-subtle bg-background">
+          <FreshnessBar
+            source="Home Front Command"
+            lastUpdated={liveAlerts.data?.source_last_updated}
+            tier="realtime"
+            stale={liveAlerts.data?.stale}
+            isFetching={liveAlerts.isFetching}
+          />
+          <div className="space-y-3 mt-3">
+            {recentIncidents.slice(0, 5).map((inc, idx) => (
+              <div key={String(inc.id ?? idx)} className="flex items-start gap-3 p-3 rounded-xl border border-border-subtle bg-background">
                 <div className="shrink-0 mt-0.5">
-                  <EventTypeBadge eventType={inc.eventType} />
+                  <EventTypeBadge eventType={String(inc.eventType ?? inc.alert_type ?? 'alert') as 'alert'} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary">{inc.title}</p>
-                  <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{inc.description}</p>
+                  <p className="text-sm font-medium text-text-primary">{String(inc.title ?? 'Alert')}</p>
+                  <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{String(inc.description ?? '')}</p>
                   <div className="flex items-center gap-3 mt-1.5 text-xs text-text-tertiary">
-                    <span>{inc.region}{inc.city ? `, ${inc.city}` : ''}</span>
-                    <span>{formatTimestamp(inc.timestamp)}</span>
+                    <span>{String(inc.region ?? (inc.areas as string[])?.join(', ') ?? '')}</span>
+                    <span>{formatTimestamp(String(inc.timestamp ?? ''))}</span>
+                    <SourceBadge sourceName={String(inc.source ?? 'Home Front Command')} confidence="official" compact />
                   </div>
                 </div>
               </div>
