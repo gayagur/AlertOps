@@ -17,6 +17,7 @@ class SystemMetrics:
     last_failed_poll: datetime | None = None
     last_db_write: datetime | None = None
     last_aggregation_run: datetime | None = None
+    last_notification_dispatch: datetime | None = None
     total_polls: int = 0
     total_poll_failures: int = 0
     total_alerts_ingested: int = 0
@@ -47,6 +48,10 @@ class SystemMetrics:
         else:
             self.total_notification_failures += 1
 
+    def record_notification_dispatch(self):
+        """Record the timestamp of the last real notification dispatch."""
+        self.last_notification_dispatch = datetime.now(timezone.utc)
+
     def record_aggregation(self):
         self.last_aggregation_run = datetime.now(timezone.utc)
 
@@ -68,30 +73,35 @@ class SystemMetrics:
         def age_seconds(ts: datetime | None) -> float | None:
             return round((now - ts).total_seconds(), 1) if ts else None
 
+        def iso(ts: datetime | None) -> str | None:
+            return ts.isoformat() if ts else None
+
         return {
             "polling": {
                 "healthy": self.is_polling_healthy(),
                 "running": self.poller_running,
-                "last_success": self.last_successful_poll.isoformat() if self.last_successful_poll else None,
+                "last_success": iso(self.last_successful_poll),
                 "last_success_age_seconds": age_seconds(self.last_successful_poll),
-                "last_failure": self.last_failed_poll.isoformat() if self.last_failed_poll else None,
+                "last_failure": iso(self.last_failed_poll),
                 "total_polls": self.total_polls,
                 "total_failures": self.total_poll_failures,
             },
             "data": {
                 "fresh": self.is_data_fresh(),
-                "last_write": self.last_db_write.isoformat() if self.last_db_write else None,
+                "last_write": iso(self.last_db_write),
                 "last_write_age_seconds": age_seconds(self.last_db_write),
                 "total_ingested": self.total_alerts_ingested,
                 "total_duplicates": self.total_duplicates_ignored,
             },
             "aggregation": {
-                "last_run": self.last_aggregation_run.isoformat() if self.last_aggregation_run else None,
+                "last_run": iso(self.last_aggregation_run),
                 "last_run_age_seconds": age_seconds(self.last_aggregation_run),
             },
             "notifications": {
                 "total_sent": self.total_notifications_sent,
                 "total_failures": self.total_notification_failures,
+                "last_dispatch": iso(self.last_notification_dispatch),
+                "last_dispatch_age_seconds": age_seconds(self.last_notification_dispatch),
             },
             "generated_at": now.isoformat(),
         }

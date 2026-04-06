@@ -131,6 +131,24 @@ async def subscribe(req: SubscribeRequest, db: AsyncSession = Depends(get_db)):
     if not req.email and not req.phone and not req.whatsapp:
         raise HTTPException(400, "At least one contact method required")
 
+    # Duplicate subscription check: same email + same areas (sorted) = reject
+    if req.email:
+        sorted_new_areas = sorted([a.lower().strip() for a in req.areas])
+        result = await db.execute(
+            select(Subscription).where(
+                Subscription.email == req.email,
+                Subscription.is_active == True,
+            )
+        )
+        existing_subs = result.scalars().all()
+        for existing in existing_subs:
+            sorted_existing_areas = sorted([a.lower().strip() for a in (existing.areas or [])])
+            if sorted_existing_areas == sorted_new_areas:
+                raise HTTPException(
+                    409,
+                    f"A subscription with this email and the same areas already exists (id={existing.id})"
+                )
+
     sub = Subscription(
         user_name=req.user_name,
         email=req.email,
@@ -170,21 +188,34 @@ async def deactivate_subscription(sub_id: int, db: AsyncSession = Depends(get_db
 
 @router.post("/test-alert")
 async def test_alert(req: TestAlertRequest, db: AsyncSession = Depends(get_db)):
-    """Send a test alert to matching subscribers."""
+    """
+    Send a test alert to matching subscribers.
+
+    By default, notifications are NOT actually dispatched (test_mode).
+    They are logged with status "test_skipped" for safety.
+
+    Set send_real_notifications=true in the request body to force real dispatch.
+    """
     now = datetime.now(timezone.utc)
+
+    # Ensure test alert_type is prefixed with "test_"
+    alert_type = req.alert_type
+    if not alert_type.startswith("test_"):
+        alert_type = f"test_{alert_type}"
+
     alert_data = {
         "id": f"test-{now.strftime('%Y%m%d%H%M%S')}",
         "timestamp": now.isoformat(),
         "areas": req.areas,
-        "alert_type": req.alert_type,
+        "alert_type": alert_type,
         "title": req.title,
         "source": "AlertOps Test",
-        "dedup_hash": compute_dedup_hash(now.isoformat(), req.areas, req.alert_type),
+        "dedup_hash": compute_dedup_hash(now.isoformat(), req.areas, alert_type),
     }
 
     alert = Alert(
         id=alert_data["id"], timestamp=now, areas=req.areas,
-        alert_type=req.alert_type, source="AlertOps Test",
+        alert_type=alert_type, source="AlertOps Test",
         title=req.title, dedup_hash=alert_data["dedup_hash"],
     )
     db.add(alert)
@@ -192,11 +223,23 @@ async def test_alert(req: TestAlertRequest, db: AsyncSession = Depends(get_db)):
 
     matched = await find_matching_subscriptions(db, req.areas)
     total_sent = 0
+    total_skipped = 0
     for sub in matched:
-        logs = await notify_subscriber(db, sub, alert_data)
-        total_sent += sum(1 for log in logs if log.status == "sent")
+        logs = await notify_subscriber(db, sub, alert_data, send_real=req.send_real_notifications)
+        for log in logs:
+            if log.status == "sent":
+                total_sent += 1
+            elif log.status == "test_skipped":
+                total_skipped += 1
 
-    return {"status": "test_sent", "matched": len(matched), "sent": total_sent}
+    mode = "live" if req.send_real_notifications else "test_mode (no real dispatch)"
+    return {
+        "status": "test_sent",
+        "mode": mode,
+        "matched": len(matched),
+        "sent": total_sent,
+        "skipped": total_skipped,
+    }
 
 
 @router.get("/stats", response_model=StatsResponse)

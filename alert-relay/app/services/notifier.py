@@ -4,18 +4,23 @@ Notification Service
 Sends alerts to subscribers via email, SMS, and WhatsApp.
 Each notification is logged with delivery status for audit.
 
-Retry logic uses tenacity for transient failures.
+Features:
+- Idempotency: checks notification_logs before sending to prevent double-sends
+- Test mode: alerts with source="AlertOps Test" skip real dispatch unless explicitly requested
+- Retry logic uses tenacity for transient failures
 """
 
 import logging
 from datetime import datetime, timezone
 
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from app.core.config import get_settings
 from app.models.notifications import NotificationLog
 from app.models.subscriptions import Subscription
+from app.services.system_status import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -135,15 +140,40 @@ async def send_with_retry(channel: str, recipient: str, subject: str, body: str)
     return False
 
 
+async def _already_sent(db: AsyncSession, alert_id: str, subscription_id: int, channel: str) -> bool:
+    """
+    Idempotency check: return True if a notification for this (alert, subscription, channel)
+    combination has already been sent successfully.
+    """
+    result = await db.execute(
+        select(NotificationLog).where(
+            and_(
+                NotificationLog.alert_id == alert_id,
+                NotificationLog.subscription_id == subscription_id,
+                NotificationLog.channel == channel,
+                NotificationLog.status.in_(["sent", "test_skipped"]),
+            )
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
 async def notify_subscriber(
     db: AsyncSession,
     sub: Subscription,
     alert: dict,
+    send_real: bool = True,
 ) -> list[NotificationLog]:
     """
     Send alert to a subscriber via all their configured channels.
     Logs each notification attempt.
+
+    If the alert source is "AlertOps Test" and send_real is False,
+    notifications are logged as "test_skipped" instead of actually sent.
+
+    Idempotency: skips channels where a notification was already sent.
     """
+    is_test_alert = alert.get("source") == "AlertOps Test"
     message = format_alert_message(alert)
     subject = f"Alert: {alert.get('title', 'Home Front Command Alert')}"
     alert_id = alert.get("id", "unknown")
@@ -158,6 +188,11 @@ async def notify_subscriber(
         channels.append(("whatsapp", sub.whatsapp))
 
     for channel, recipient in channels:
+        # Idempotency check: skip if already sent for this combination
+        if await _already_sent(db, alert_id, sub.id, channel):
+            logger.info(f"Skipping duplicate notification: alert={alert_id} sub={sub.id} channel={channel}")
+            continue
+
         log = NotificationLog(
             alert_id=alert_id,
             subscription_id=sub.id,
@@ -167,18 +202,26 @@ async def notify_subscriber(
             attempts=0,
         )
 
-        try:
-            success = await send_with_retry(channel, recipient, subject, message)
-            log.status = "sent" if success else "failed"
-            log.attempts = 1
-            if success:
-                log.sent_at = datetime.now(timezone.utc)
-        except Exception as e:
-            log.status = "failed"
-            log.error_message = str(e)[:500]
-            log.attempts = 3
-            logger.error(f"All retries failed for {channel} to {recipient}: {e}")
+        # Test alert safety: skip real dispatch unless explicitly requested
+        if is_test_alert and not send_real:
+            log.status = "test_skipped"
+            log.attempts = 0
+            logger.info(f"Test alert — skipping real {channel} notification to {recipient}")
+        else:
+            try:
+                success = await send_with_retry(channel, recipient, subject, message)
+                log.status = "sent" if success else "failed"
+                log.attempts = 1
+                if success:
+                    log.sent_at = datetime.now(timezone.utc)
+                    metrics.record_notification_dispatch()
+            except Exception as e:
+                log.status = "failed"
+                log.error_message = str(e)[:500]
+                log.attempts = 3
+                logger.error(f"All retries failed for {channel} to {recipient}: {e}")
 
+        metrics.record_notification(log.status in ("sent", "test_skipped"))
         db.add(log)
         logs.append(log)
 
