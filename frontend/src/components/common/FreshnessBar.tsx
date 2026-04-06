@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { cn, formatIsraelTimeShort } from '@/lib/utils';
 import { Shield, RefreshCw, AlertCircle, Clock } from 'lucide-react';
 
 type FreshnessState = 'live' | 'updating' | 'delayed' | 'unknown';
@@ -16,16 +16,6 @@ function getState(stale?: boolean, isFetching?: boolean, lastUpdated?: string | 
   if (stale) return 'delayed';
   if (lastUpdated) return 'live';
   return 'unknown';
-}
-
-function formatTime(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  } catch {
-    return '—';
-  }
 }
 
 const stateConfig: Record<FreshnessState, { icon: typeof Shield; label: string; color: string; dot: string }> = {
@@ -58,7 +48,7 @@ export function FreshnessBar({ source, lastUpdated, tier, stale, isFetching }: F
 
       {/* Last updated */}
       {lastUpdated && (
-        <span>Updated {formatTime(lastUpdated)}</span>
+        <span>Updated {formatIsraelTimeShort(lastUpdated)}</span>
       )}
 
       {/* Tier */}
@@ -72,6 +62,9 @@ export function FreshnessBar({ source, lastUpdated, tier, stale, isFetching }: F
       {stale && (
         <span className="text-neutral-signal font-medium">Data may be delayed</span>
       )}
+
+      {/* Timezone note */}
+      <span className="text-[10px] opacity-60">Israel time</span>
     </div>
   );
 }

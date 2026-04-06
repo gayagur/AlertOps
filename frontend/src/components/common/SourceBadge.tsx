@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { cn, formatIsraelTime } from '@/lib/utils';
 import { Shield, CheckCircle, AlertCircle } from 'lucide-react';
 import type { Confidence, SourceType } from '@/types/conflict';
 
@@ -20,9 +20,7 @@ export function SourceBadge({ sourceName, confidence = 'official', timestamp, co
   const config = confidenceConfig[confidence];
   const Icon = config.icon;
 
-  const formattedTime = timestamp
-    ? new Date(timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : null;
+  const formattedTime = timestamp ? formatIsraelTime(timestamp) : null;
 
   if (compact) {
     return (

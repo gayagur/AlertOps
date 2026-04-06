@@ -1,9 +1,8 @@
 import { useState, useMemo, Fragment } from 'react';
 import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { cn, formatTimestamp, formatIsraelDayShort } from '@/lib/utils';
 import { SourceBadge } from '@/components/common/SourceBadge';
 import { EventTypeBadge } from '@/components/common/EventTypeBadge';
-import { formatTimestamp } from '@/lib/utils';
 import { mockIncidents } from '@/lib/mock-conflict';
 import type { EventType } from '@/types/conflict';
 
@@ -121,7 +120,7 @@ export function IncidentTimeline() {
           <Fragment key={day}>
             <div className="flex items-center gap-3">
               <div className="text-xs font-semibold text-text-secondary bg-background border border-border rounded-lg px-3 py-1">
-                {new Date(day + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                {formatIsraelDayShort(day + 'T00:00:00Z')}
               </div>
               <div className="flex-1 h-px bg-border-subtle" />
             </div>

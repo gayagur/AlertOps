@@ -6,7 +6,7 @@ import { FreshnessBar } from '@/components/common/FreshnessBar';
 import { EventTypeBadge } from '@/components/common/EventTypeBadge';
 import { SourceBadge } from '@/components/common/SourceBadge';
 import { DashboardSkeleton } from '@/components/common/LoadingSkeleton';
-import { formatTimestamp, cn } from '@/lib/utils';
+import { formatTimestamp, formatIsraelDate, cn } from '@/lib/utils';
 import { mockIncidents } from '@/lib/mock-conflict';
 import type { EventType } from '@/types/conflict';
 
@@ -38,7 +38,7 @@ export function LiveAlerts() {
   const grouped = new Map<string, Array<Record<string, unknown>>>();
   for (const inc of filtered) {
     const ts = String(inc.timestamp ?? '');
-    const day = ts ? new Date(ts).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'Unknown';
+    const day = ts ? formatIsraelDate(ts) : 'Unknown';
     if (!grouped.has(day)) grouped.set(day, []);
     grouped.get(day)!.push(inc);
   }
