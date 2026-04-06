@@ -5,6 +5,7 @@ import { RegionalAnalysis } from '@/pages/RegionalAnalysis';
 import { TimeAnalysis } from '@/pages/TimeAnalysis';
 import { IncidentTimeline } from '@/pages/IncidentTimeline';
 import { OfficialAlerts } from '@/pages/OfficialAlerts';
+import { LiveAlerts } from '@/pages/LiveAlerts';
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/" element={<ConflictOverview />} />
+          <Route path="/live" element={<LiveAlerts />} />
           <Route path="/regional" element={<RegionalAnalysis />} />
           <Route path="/time" element={<TimeAnalysis />} />
           <Route path="/timeline" element={<IncidentTimeline />} />

@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
+  Radio,
   Map,
   Clock,
   List,
@@ -10,6 +11,7 @@ import {
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Overview' },
+  { to: '/live', icon: Radio, label: 'Live Alerts' },
   { to: '/regional', icon: Map, label: 'Regional' },
   { to: '/time', icon: Clock, label: 'Time Analysis' },
   { to: '/timeline', icon: List, label: 'Timeline' },

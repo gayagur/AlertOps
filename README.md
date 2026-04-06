@@ -1,67 +1,50 @@
-# Market Opportunity Intelligence
+# AlertOps — Civilian Conflict Monitor
 
-**Live Demo:** [market-intel-sooty.vercel.app](https://market-intel-sooty.vercel.app/)
+**Live Dashboard:** [market-intel-sooty.vercel.app](https://market-intel-sooty.vercel.app/)
 
-A premium market analysis dashboard that ingests macro events, market signals, and sector-level trends, then explains where investment opportunities may exist and why.
+A civilian-facing conflict monitoring dashboard providing historical alert analytics, regional analysis, and official guidance based on publicly available data from the Home Front Command.
 
-**This is NOT a trading bot or financial advice tool.** It provides structured market analysis, opportunity signals, risk context, and clear explanations.
+**This is a public information platform. It does not provide tactical forecasting, attack prediction, or operational intelligence.**
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐     ┌───────────┐
-│  yfinance    │────▶│ Signal Engine │────▶│ AI Analysis  │────▶│  Summary  │
-│  (Live ETF   │     │ (Derive bias,│     │ (OpenAI for  │     │  Service  │
-│   & Macro)   │     │  confidence) │     │  enrichment) │     │ (Merge)   │
-└─────────────┘     └──────────────┘     └──────────────┘     └───────────┘
-                                                                      │
-                                                                      ▼
-                                                              ┌───────────┐
-                                                              │  FastAPI   │
-                                                              │  Routes    │
-                                                              └───────────┘
-                                                                      │
-                                                                      ▼
-                                                              ┌───────────┐
-                                                              │  React +  │
-                                                              │ Dashboard │
-                                                              └───────────┘
+┌───────────────┐     ┌───────────┐     ┌──────────┐     ┌──────────┐     ┌────────────┐
+│ Official HFC   │────▶│ Ingestion │────▶│  Dedup   │────▶│ Matcher  │────▶│  Notifier  │
+│ Alert Source   │     │ (Parse)   │     │ (Redis)  │     │ (DB)     │     │ (Send)     │
+└───────────────┘     └───────────┘     └──────────┘     └──────────┘     └────────────┘
+         │                                    │                                  │
+         │                                    ▼                          ┌───────┴───────┐
+         │                              ┌──────────┐                     │ Email│SMS│WA  │
+         │                              │ Postgres │                     └───────────────┘
+         │                              └──────────┘
+         │                                    │
+         ▼                                    ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    React Dashboard (Vercel)                   │
+│  Overview │ Live Alerts │ Regional │ Time │ Timeline │ Alerts │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Tech Stack
+## Components
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 18, Vite, TypeScript, Tailwind CSS v4, Framer Motion, Recharts |
-| **Backend** | FastAPI, Python 3.13 |
-| **Data** | yfinance (sector ETFs + macro tickers), mock fallback |
-| **AI** | OpenAI API (GPT-4o) for structured analysis enrichment |
+| Component | Directory | Stack | Deployment |
+|-----------|-----------|-------|------------|
+| **Dashboard** | `frontend/` | React, TypeScript, Tailwind, TanStack Query, Recharts | Vercel |
+| **Alert Relay** | `alert-relay/` | FastAPI, PostgreSQL, Redis, Alembic | Render |
 
-## How It Works
+## Dashboard Pages
 
-1. **Data Layer** — Fetches 3 months of daily OHLCV data for 8 sector ETFs (SMH, SKYY, ICLN, XBI, VNQ, XLY, ITA, XLF) plus SPY benchmark, and macro tickers (10Y yield, VIX, DXY, Gold, Oil, S&P 500)
-2. **Signal Engine** — Computes 1-month returns, relative strength vs SPY, volume trends, confidence scores, and directional bias (bullish / neutral / bearish)
-3. **AI Analysis** — Sends structured signal data to OpenAI, which generates explanations, risk assessments, and opportunity rankings in strict JSON format. The LLM never invents data — it only analyzes what the signals show.
-4. **Summary Service** — Merges raw signals + AI enrichment into the final API response
-5. **Dashboard** — Renders a premium institutional-grade UI with KPI cards, opportunity rankings, macro driver timeline, risk radar, and sector confidence charts
+| Page | Path | Description | Refresh |
+|------|------|-------------|---------|
+| **Overview** | `/` | KPIs, charts, recent incidents, official updates | 30s |
+| **Live Alerts** | `/live` | Real-time alert feed with filtering | 5s |
+| **Regional** | `/regional` | Per-region stats, comparison cards, charts | 30-60s |
+| **Time Analysis** | `/time` | Hourly heatmap, trends, activity charts | 2-5min |
+| **Timeline** | `/timeline` | Chronological incident feed with filters | 5s |
+| **Official Alerts** | `/alerts` | Guidance, shelter times, source info | 60s |
 
 ## Setup
-
-### Backend
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Copy and configure environment
-cp .env.example .env
-# Edit .env with your OpenAI API key
-
-# Run
-uvicorn app.main:app --reload --port 8000
-```
 
 ### Frontend
 
@@ -71,61 +54,52 @@ npm install
 npm run dev
 ```
 
-The frontend dev server proxies `/api` requests to `http://localhost:8000`.
+Set `VITE_API_BASE_URL` to your deployed alert-relay backend URL for live data.
 
-### Environment Variables
+### Alert Relay Backend
+
+```bash
+cd alert-relay
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env with DATABASE_URL, REDIS_URL
+alembic upgrade head
+uvicorn app.main:app --reload --port 8001
+```
+
+See [alert-relay/README.md](alert-relay/README.md) for full deployment guide.
+
+## Environment Variables
+
+### Frontend (Vercel)
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_BASE_URL` | Alert relay backend URL (e.g. `https://your-app.onrender.com`) |
+
+### Alert Relay (Render)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `OPENAI_API_KEY` | No | OpenAI key for AI-enriched analysis |
-| `OPENAI_MODEL` | No | Model to use (default: `gpt-4o`) |
+| `DATABASE_URL` | Yes | PostgreSQL (use `postgresql+asyncpg://` prefix) |
+| `REDIS_URL` | Yes | Redis connection string |
+| `API_SECRET_KEY` | Yes (prod) | Random secret for API auth |
+| `SENDGRID_API_KEY` | No | Email notifications |
+| `TWILIO_ACCOUNT_SID` | No | SMS/WhatsApp notifications |
+| `TWILIO_AUTH_TOKEN` | No | Twilio auth |
 
-Without an OpenAI key, the app still works — it shows signal-derived analysis without AI narrative enrichment. Without a network connection, it falls back to built-in mock data.
+## Data Freshness
 
-## API Endpoints
+Every API response includes freshness metadata (`generated_at`, `source_last_updated`, `freshness_tier`, `stale`). The frontend displays live/updating/delayed status on every data panel.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/overview` | Market overview and sentiment |
-| GET | `/api/opportunities` | Ranked sector opportunities |
-| GET | `/api/risks` | Current risk factors |
-| GET | `/api/macro` | Macro economic drivers |
-| GET | `/api/analysis` | Full analysis payload (used by dashboard) |
-| POST | `/api/analyze` | On-demand analysis with sector focus filters |
-
-## Project Structure
-
-```
-market-intel/
-├── backend/
-│   ├── app/
-│   │   ├── api/routes.py          # FastAPI endpoints
-│   │   ├── core/config.py         # Settings & env vars
-│   │   ├── models/signals.py      # Internal signal models
-│   │   ├── schemas/analysis.py    # API response schemas
-│   │   └── services/
-│   │       ├── openbb_service.py  # Live market data (yfinance)
-│   │       ├── signal_engine.py   # Signal computation
-│   │       ├── ai_analysis_service.py  # OpenAI integration
-│   │       ├── summary_service.py # Response merging
-│   │       └── mock_data.py       # Fallback mock data
-│   ├── .env.example
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── layout/            # AppShell, Sidebar, Topbar
-│   │   │   ├── cards/             # MetricCard, OpportunityCard, RiskCard, etc.
-│   │   │   ├── charts/            # SectorMomentumChart
-│   │   │   └── common/            # Pills, badges, skeletons, empty states
-│   │   ├── pages/                 # Dashboard, Opportunities, Macro, Risks, Analysis
-│   │   ├── hooks/useAnalysis.ts   # Data fetching hook
-│   │   ├── lib/                   # API client, utils, mock data
-│   │   └── types/analysis.ts      # TypeScript types
-│   └── package.json
-└── README.md
-```
+| Tier | Interval | Used For |
+|------|----------|----------|
+| Realtime | 5s | Live alerts, incident feed |
+| Near-realtime | 30s | KPIs, region stats, official updates |
+| Aggregated | 2-5min | Heatmaps, time series, trends |
 
 ## Disclaimer
 
-This application is for informational and research purposes only. It does not constitute financial advice, investment recommendations, or an offer to buy or sell securities.
+This dashboard is intended for civilian informational use based on public official sources and historical data. It does not provide real-time tactical forecasting.
