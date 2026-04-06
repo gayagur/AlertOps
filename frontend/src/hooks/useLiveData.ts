@@ -6,9 +6,12 @@
  * Tier 1 (5s):  live alerts, incident feed
  * Tier 2 (30s): overview KPIs, region stats, official updates
  * Tier 3 (3min): heatmaps, time series, trend charts
+ *
+ * CRITICAL: All queries use keepPreviousData so existing content stays
+ * visible during background refetches — no white flash.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL
   ? `${import.meta.env.VITE_API_BASE_URL}/api`
@@ -36,6 +39,7 @@ export function useLiveAlerts(limit = 20) {
     queryKey: ['alerts', 'live', limit],
     queryFn: () => fetchLive<FreshnessEnvelope<unknown[]>>(`/alerts/live?limit=${limit}`),
     refetchInterval: 5_000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -46,6 +50,7 @@ export function useOverview() {
     queryKey: ['overview'],
     queryFn: () => fetchLive<FreshnessEnvelope<Record<string, unknown>>>('/overview'),
     refetchInterval: 30_000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -54,6 +59,7 @@ export function useRegionStats() {
     queryKey: ['regions'],
     queryFn: () => fetchLive<FreshnessEnvelope<unknown[]>>('/regions'),
     refetchInterval: 30_000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -64,6 +70,7 @@ export function useTimeSeries(days = 14) {
     queryKey: ['timeseries', days],
     queryFn: () => fetchLive<FreshnessEnvelope<unknown[]>>(`/timeseries?days=${days}`),
     refetchInterval: 180_000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -72,6 +79,7 @@ export function useHeatmap(days = 7) {
     queryKey: ['heatmap', days],
     queryFn: () => fetchLive<FreshnessEnvelope<unknown[]>>(`/heatmap?days=${days}`),
     refetchInterval: 180_000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -82,5 +90,6 @@ export function useSystemStatus() {
     queryKey: ['system', 'status'],
     queryFn: () => fetchLive<Record<string, unknown>>('/system/status'),
     refetchInterval: 10_000,
+    placeholderData: keepPreviousData,
   });
 }

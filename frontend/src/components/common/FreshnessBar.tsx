@@ -34,7 +34,11 @@ export function FreshnessBar({ source, lastUpdated, tier, stale, isFetching }: F
     <div className="flex items-center gap-3 text-[11px] text-text-tertiary flex-wrap">
       {/* State indicator */}
       <span className={cn('inline-flex items-center gap-1.5 font-medium', config.color)}>
-        <span className={cn('h-1.5 w-1.5 rounded-full', config.dot, state === 'live' && 'animate-pulse')} />
+        {state === 'updating' ? (
+          <RefreshCw className="h-3 w-3 animate-spin" />
+        ) : (
+          <span className={cn('h-1.5 w-1.5 rounded-full', config.dot, state === 'live' && 'animate-pulse')} />
+        )}
         {config.label}
       </span>
 
