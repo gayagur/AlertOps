@@ -3,23 +3,22 @@ import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   Search,
-  BarChart3,
   Menu,
   X,
   LayoutDashboard,
-  TrendingUp,
-  Activity,
-  ShieldAlert,
-  Crosshair,
+  Map,
+  Clock,
+  List,
+  Shield,
 } from 'lucide-react';
+import { SourceBadge } from '@/components/common/SourceBadge';
 
 const mobileNavItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/opportunities', icon: TrendingUp, label: 'Opportunities' },
-  { to: '/recommendations', icon: Crosshair, label: 'Recommendations' },
-  { to: '/macro', icon: Activity, label: 'Macro Drivers' },
-  { to: '/risks', icon: ShieldAlert, label: 'Risk Monitor' },
-  { to: '/analysis', icon: BarChart3, label: 'Analysis' },
+  { to: '/', icon: LayoutDashboard, label: 'Overview' },
+  { to: '/regional', icon: Map, label: 'Regional' },
+  { to: '/time', icon: Clock, label: 'Time Analysis' },
+  { to: '/timeline', icon: List, label: 'Timeline' },
+  { to: '/alerts', icon: Shield, label: 'Official Alerts' },
 ];
 
 export function Topbar() {
@@ -32,9 +31,9 @@ export function Topbar() {
           {/* Mobile logo */}
           <div className="flex items-center gap-3 lg:hidden">
             <div className="h-7 w-7 rounded-lg bg-accent flex items-center justify-center">
-              <BarChart3 className="h-3.5 w-3.5 text-white" />
+              <Shield className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="text-sm font-semibold">Market Intel</span>
+            <span className="text-sm font-semibold">Conflict Monitor</span>
           </div>
 
           {/* Search */}
@@ -43,20 +42,19 @@ export function Topbar() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-tertiary" />
               <input
                 type="text"
-                placeholder="Search sectors, themes, signals..."
+                placeholder="Search regions, incidents..."
                 className="w-full h-9 pl-9 pr-4 rounded-xl border border-border bg-background text-sm placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/40 transition-all"
               />
               <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-text-tertiary bg-background border border-border rounded px-1.5 py-0.5 font-mono">
-                ⌘K
+                /
               </kbd>
             </div>
           </div>
 
           {/* Right side */}
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-2 text-xs text-text-tertiary">
-              <div className="h-2 w-2 rounded-full bg-bullish animate-pulse" />
-              Live
+            <div className="hidden md:block">
+              <SourceBadge sourceName="Official Sources" confidence="official" compact />
             </div>
 
             {/* Mobile menu toggle */}
