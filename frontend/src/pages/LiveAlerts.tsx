@@ -136,7 +136,7 @@ export function LiveAlerts() {
                             <span className="text-xs text-text-tertiary">
                               {formatTimestamp(String(inc.timestamp ?? ''))}
                             </span>
-                            {inc.count && Number(inc.count) > 1 && (
+                            {Number(inc.count ?? 0) > 1 && (
                               <span className="rounded bg-background px-1.5 py-0.5 text-[10px] font-medium text-text-secondary">
                                 ×{String(inc.count)}
                               </span>
@@ -145,7 +145,7 @@ export function LiveAlerts() {
                           <p className="text-sm font-medium text-text-primary">
                             {String(inc.title ?? 'Alert')}
                           </p>
-                          {inc.description && (
+                          {String(inc.description ?? '') !== '' && (
                             <p className="text-xs text-text-secondary mt-1 leading-relaxed">
                               {String(inc.description)}
                             </p>
