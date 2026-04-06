@@ -7,7 +7,6 @@ import { EventTypeBadge } from '@/components/common/EventTypeBadge';
 import { SourceBadge } from '@/components/common/SourceBadge';
 import { RegionSelector } from '@/components/common/RegionSelector';
 import { MetricCard } from '@/components/cards/MetricCard';
-import { DashboardSkeleton } from '@/components/common/LoadingSkeleton';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { mockIncidents } from '@/lib/mock-conflict';
 import type { EventType } from '@/types/conflict';
@@ -54,10 +53,9 @@ export function LiveAlerts() {
   const [eventFilter, setEventFilter] = useState<EventType | 'all'>('all');
   const [timeWindow, setTimeWindow] = useState<TimeWindow>('24h');
 
-  const { data, isFetching, isLoading } = useLiveAlerts(100);
+  const { data, isFetching } = useLiveAlerts(100);
 
-  if (isLoading) return <DashboardSkeleton />;
-
+  // Always show content — mock data is the fallback, never show blank page
   const allIncidents: Array<Record<string, unknown>> = (data?.data ?? mockIncidents) as Array<Record<string, unknown>>;
 
   // Filter by region

@@ -9,7 +9,7 @@ import { MetricCard } from '@/components/cards/MetricCard';
 import { InsightPanel } from '@/components/cards/InsightPanel';
 import { FreshnessBar } from '@/components/common/FreshnessBar';
 import { RegionSelector } from '@/components/common/RegionSelector';
-import { mockTimeSeries, mockHeatmap, mockOverview } from '@/lib/mock-conflict';
+import { mockTimeSeries, mockHeatmap } from '@/lib/mock-conflict';
 import { useTimeSeries, useHeatmap } from '@/hooks/useLiveData';
 
 const disclaimer =
